@@ -1,19 +1,21 @@
 # What's this?
 
-This is an example where something really unexpected happen that doesn't fit
-with the mental model of how channel, function and sub tests works in Go.
+This is an example where something unexpected happened.
+
+What makes it interesting is the behavior doesn't fit with the mental model
+of how channel, function and sub tests works in Go.
 
 ## The story
 
-I was trying to write a rate limiter that can deals with concurrent requests in Go.
-To test one implementation, I wrote some tests that involved:
+I was trying to write a rate limiter that can deal with concurrent requests in Go.
+To check one implementation, I wrote some tests that involved:
 
-- Making N concurrent call `IsAllow(timestamp)`
-- Check the result and Fatalf it it doesn't match
+- Making N concurrent call `IsAllow(timestamp)` (same timestamp)
+- Check the result and call `Fatalf` it it doesn't match
 - Note that this test logic is wrong (since there's no guaranteed ordering of goroutines).
-- However, what caught me offguard instead was getting a deadlock where I thought it was impossible.
-- Digging further, the problem seems to be with the use of `Fatalf`, which seems to do something
-  different from `Logf` or `Errorf`. Only see a deadlock when using `Fatalf`.
+- However, what caught me offguard was getting a deadlock where I thought it was impossible.
+- Digging further, the problem seems to be with the use of `Fatalf` vs `Logf` or `Errorf`.
+  I only get deadlock when using `Fatalf`.
 
 ## Try out
 
