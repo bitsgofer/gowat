@@ -102,7 +102,7 @@ exit status 2
 FAIL    github.com/bitsgofer/gowat/channel-in-test      0.021s
 ```
 
-Edit `concurrent_rate_limiter_test.go` and comment out the line with `Fatalf`.
+Edit `concurrent_rate_limiter_test.go` and comment out [the line with `Fatalf`](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L54).
 Replace it with `Logf` or `Errorf` instead.
 
 No deadlock now.
