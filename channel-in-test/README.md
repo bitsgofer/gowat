@@ -306,7 +306,7 @@ Moving on:
 
 We see another `calling deferred func of makeCall` and `received once`. Furthermore, one more
 goroutine disappeared. This matches with what should have happened: goroutine 22
-sent the singal on `done`, call its deferred function and exit. Meanwhile goroutine 20 received
+sent the singal on `done`, called its deferred function and exit. Meanwhile goroutine 20 received
 a signal, print and stop at the break point again.
 
 Let's try to move to the next line: [L84](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L84)
