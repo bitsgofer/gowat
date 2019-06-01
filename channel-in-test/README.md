@@ -21,7 +21,7 @@ To check one implementation, I wrote some tests that would involved:
 This seems reasonable at first, so I proceeded to write the test.
 However, when running it, I got a deadlock, which puzzled me.
 
-P.S: you can jump to [the extra part](#) to see what's wrong with the spec above.
+P.S: you can jump to [the extra part](#extra) to see what's wrong with the spec above.
 Hint: it's related to temporal properties (how the system behave over time).
 
 Anw, while the problem was with me, tracing this down helped me learn to debug Go code better,
@@ -111,7 +111,8 @@ This removes the doubt of whether I'm running the same thing when I repeat the d
 What we see from the output:
 
 - `makeCall` was called twice and ran to completion each time (as we saw its deferred calls).
-- one msg was sent to `done` and the [waiting code](#) saw it.
+- one msg was sent to `done` and the [waiting code](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L82-L85)
+  saw it.
 - then we got a deadlock
 
 At this point, keen readers will see the obvious thing: one of the `makeCall` function fail, call
@@ -155,10 +156,14 @@ To understand what I did wrong here, I used [delve](https://github.com/go-delve/
 
 I first set breakpoints at:
 
-- [L41](#): to see that `makeCall` went through what's inside before moving on to its deferred calls.
-- [L51](#): right before call to `Fatalf`
-- [L73](#): right before sending a signal to the `done` channel
-- [L83](#): right before receiving a signal from the `done` channel
+- [L41](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L41):
+  to see that `makeCall` went through what's inside before moving on to its deferred calls.
+- [L51](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L51):
+  right before call to `Fatalf`
+- [L73](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L73):
+  right before sending a signal to the `done` channel
+- [L83](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L83):
+  right before receiving a signal from the `done` channel
 
 Then as we continue to run till the first break point:
 
@@ -197,12 +202,14 @@ Then as we continue to run till the first break point:
 	[8 goroutines]
 
 The stack trace (`bt`) showed that we start from `tRunner` (the test runner) and went down into
-[L83](#), waiting for a signal.
+[L83](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L83),
+waiting for a signal.
 
 Meanwhile, the interesting goroutines are:
 
 - 20: the one we are on, called from `tRunner`
-- 21: one `makeCall`. It currently stopped at [L51](#), where `Fatalf` is
+- 21: one `makeCall`. It currently stopped at [L51](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L51),
+  where `Fatalf` is.
 - 22: another `makeCall`. This one have not started executing yet.
   Because we have setup one call to fail (happend in goroutine 21), this one should not fail.
 
@@ -301,7 +308,7 @@ goroutine disappeared. This matches with what should have happened: goroutine 22
 sent the singal on `done`, call its deferred function and exit. Meanwhile goroutine 20 received
 a signal, print nd stop at the break point again.
 
-Let's try to move to the next line: [L84](#)
+Let's try to move to the next line: [L84](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L84)
 
 	(dlv) n
 	fatal error: all goroutines are asleep - deadlock!
@@ -314,7 +321,8 @@ expect a second signal ever so there's no way to continue.
 
 ## Conclusion
 
-What I missed out was in fact right there in the doc for [testing.T](#) (emphasis mine):
+What I missed out was in fact right there in the doc for [testing.T](https://golang.org/pkg/testing/#T)
+(emphasis mine):
 
 > A test ends when its Test function returns or calls any of the methods FailNow, Fatal,
 > Fatalf, SkipNow, Skip, or Skipf.
