@@ -330,7 +330,7 @@ What I missed out was in fact right there in the doc for [testing.T](https://gol
 > Those methods, as well as the Parallel method,
 > **must be called only from the goroutine running the Test function**.
 
-While it's tempting to just say RTFM. I wouldn't have internalized it w/o hitting this issue, still.
+While it's tempting to just say RTFM. I wouldn't have internalized it w/o hitting this issue.
 
 `ノ┬─┬ノ ︵ ( \o°o)\`
 
