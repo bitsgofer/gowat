@@ -1,40 +1,36 @@
 ## What's this?
 
-This is a debug story.
-I want to document this debugging process down, plus anything learnt from it.
+This is a debug story. The bug happened because the code didn't do what I expected it to do.
 
-The bug happened because the code didn't do what I expected it to do. This means my mental
-model has divereged from reality. And it happened in such a subtle way that I wasn't able to
-understand what happened at a glance.
+My mental model has divereged from reality here. Plus, it happened in a subtle way
+that I wasn't able to understand at a glance.
 
-Having the debugging story here will hopefully allow learning and refining that mental model.
+I document the debugging process plus other things learnt here to distill to do it better next time.
+It also helped me refined my mental model of how Go tests execute.
 
 ## The story
 
-I was trying to write a rate limiter that can deal with concurrent requests in Go.
-To check one implementation, I wrote some tests that would involved:
+I was trying to write a toy rate limiter that can deal with concurrent requests in Go.
+To check one implementation, I wrote some tests involving:
 
-- Call `IsAllow(timestamp)` N times, concurrently.
+- Concurrently call `IsAllow(timestamp)` N times.
 - For each call, I would expect whether it should be allowed or not.
-- The test should fail when the result is unexpected.
+- The test should fail when the result is not what was expected.
 
 This seems reasonable at first, so I proceeded to write the test.
-However, when running it, I got a deadlock, which puzzled me.
+However, when running it, I got a deadlock. This puzzled me for a while.
 
-P.S: you can jump to [the extra part](#extra) to see what's wrong with the spec above.
-Hint: it's related to temporal properties (how the system behave over time).
+> The spec above is not correct, too. You jump to [the extra part](#extra) to see what's the issue.
+> Hint: it's related to temporal properties (how the system behaves over time).
 
-Anw, while the problem was with me, tracing this down helped me learn to debug Go code better,
-so it's not all bad :D.
-
-> Much thanks to my colleagues: `jay7x` and `choonkeat` for pitching in ideas/code :)
+> P.S: Thanks `jay7x` and `choonkeat` for pitching in with code and ideas!
 
 ## Reproduce
 
 The test's code [is linked here](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L8-L90).
-It's quite bloated as I tried to annotate the problem and print out what's going on.
+It's bloated as I tried to annotate the problem and print out what's going on.
 For the most part, you can ignore the comments.
-I only keep them there so the debugging log matches what happened.
+They are still there so line numbers in the debugger matches.
 
 The system I'm working on
 
@@ -65,10 +61,11 @@ The system I'm working on
 
 While I started running this as normal with `go test -mod=vendor -v ./...`, it occurred to
 me that I could compile the test into a binary as well.
-This removes the doubt of whether I'm running the same thing when I repeat the debugging steps.
 
-	$ GO111MODULE=on go test -mod=vendor -c -o myTest
-	$ ./myTest -test.v
+This ensures that I always debug the same thing, even if I restart the debugger.
+
+	$> GO111MODULE=on go test -mod=vendor -c -o myTest
+	$> ./myTest -test.v
 	=== RUN   TestWat
 	=== RUN   TestWat/oneRPS
 	calling deferred func of makeCall
@@ -108,25 +105,27 @@ This removes the doubt of whether I'm running the same thing when I repeat the d
 	created by testing.(*T).Run
 	        /usr/local/go/src/testing/testing.go:916 +0x35a
 
-What we see from the output:
+What we see:
 
-- `makeCall` was called twice and ran to completion each time (as we saw its deferred calls).
-- one msg was sent to `done` and the [waiting code](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L82-L85)
+- `makeCall` was called twice. It returns and trigger deferred functions each time.
+- one signal was sent to `done` and the
+  [waiting code](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L82-L85)
   saw it.
-- then we got a deadlock
+- we got a deadlock
 
-At this point, keen readers will see the obvious thing: one of the `makeCall` function fail, call
-`Fatalf` and don't send anything to the `done` channel. Meanwhile, because I want to wait for
-**two** messages, a deadlock will definitely occur.
+At this point, keen readers will see the obvious thing: one of the `makeCall` function failed, called
+`Fatalf` and didn't send anything to the `done` channel. Meanwhile, we are waiting for **two**.
+This is what caused the deadlock.
 
-Well, that's it, really! However, it was not this clear when I was looking at it. What I expected
-was that the `Fatalf` call would fail my test and terminate it there.
+Well, that's it in retrospect! However, it was not clear at all when I was looking at the problem.
+
+What I expected was that the `Fatalf` call would fail my test and terminate it there. This is obviously wrong.
 
 ## Debug
 
-To understand what I did wrong here, I used [delve](https://github.com/go-delve/delve) to trace:
+To understand what went wrong here, I used [delve](https://github.com/go-delve/delve) to trace:
 
-	$ GO111MODULE=on dlv exec ./myTest
+	$> GO111MODULE=on dlv exec ./myTest
 	Type 'help' for list of commands.
 	(dlv) b TestWat
 	Breakpoint 1 set at 0x4eeceb for github.com/bitsgofer/gowat/channel-in-test.TestWat() ./concurrent_rate_limiter_test.go:8
@@ -154,18 +153,18 @@ To understand what I did wrong here, I used [delve](https://github.com/go-delve/
 	Breakpoint 5 set at 0x4ef38c for github.com/bitsgofer/gowat/channel-in-test.TestWat.func1() ./concurrent_rate_limiter_test.go:83
 
 
-I first set breakpoints at:
+I first set four breakpoints:
 
 - [L41](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L41):
-  to see that `makeCall` went through what's inside before moving on to its deferred calls.
+  stop `makeCall` as it returns and triggers the deferred functions.
 - [L51](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L51):
-  right before call to `Fatalf`
+  stop right before call to `Fatalf`.
 - [L73](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L73):
-  right before sending a signal to the `done` channel
+  stop right before sending a signal to `done`.
 - [L83](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L83):
-  right before receiving a signal from the `done` channel
+  stop right before receiving a signal from `done`.
 
-Then as we continue to run till the first break point:
+As we continue to run till the first breaking point:
 
 	(dlv) c
 	> github.com/bitsgofer/gowat/channel-in-test.TestWat.func1.2() ./concurrent_rate_limiter_test.go:51 (hits goroutine(21):1 total:1) (PC: 0x4ef1e8)
@@ -201,20 +200,20 @@ Then as we continue to run till the first break point:
 	  Goroutine 22 - User: ./concurrent_rate_limiter_test.go:39 github.com/bitsgofer/gowat/channel-in-test.TestWat.func1.2 (0x4ef120)
 	[8 goroutines]
 
-The stack trace (`bt`) showed that we start from `tRunner` (the test runner) and went down into
+The stack trace (`bt`) shows that we started from `tRunner` (the test runner) and continued to
 [L83](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L83),
 waiting for a signal.
 
 Meanwhile, the interesting goroutines are:
 
-- 20: the one we are on, called from `tRunner`
+- 20: the one we are in, called from `tRunner`
 - 21: one `makeCall`. It currently stopped at [L51](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L51),
   where `Fatalf` is.
-- 22: another `makeCall`. This one have not started executing yet.
-  Because we have setup one call to fail (happend in goroutine 21), this one should not fail.
+- 22: another `makeCall`. This one have not started executing yet
+  (still at [L39](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L39)),
+  Because we have setup one call to fail (happend in goroutine 21), the call in this goroutine should not fail.
 
-
-Let's continue.
+Let's continue:
 
 	(dlv) c
 	> github.com/bitsgofer/gowat/channel-in-test.TestWat.func1.2.1() ./concurrent_rate_limiter_test.go:41 (hits goroutine(21):1 total:1) (PC: 0x4ef0ad)
@@ -243,9 +242,10 @@ Let's continue.
 	* Goroutine 22 - User: ./concurrent_rate_limiter_test.go:73 github.com/bitsgofer/gowat/channel-in-test.TestWat.func1.2 (0x4ef1b6) (thread 5034)
 	[8 goroutines]
 
-Here, we see goroutine 22 suceeding and is about to send a signal on `done`.
+Here, we see goroutine 22 stop at [L73](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L73),
+before sending a signal to `done`.
 
-Let's continue again.
+Let's continue again:
 
 	(dlv) c
 	calling deferred func of makeCall
@@ -272,11 +272,10 @@ Let's continue again.
 	* Goroutine 22 - User: ./concurrent_rate_limiter_test.go:41 github.com/bitsgofer/gowat/channel-in-test.TestWat.func1.2.1 (0x4ef0ad) (thread 5034)
 	[7 goroutines]
 
-We see one `calling deferred func of makeCall` printed out. At the same time, goroutine 21
-disappeared. Here, it's reasonable to guess that the print is caused by goroutine 21's deferred
-call.
+We see `calling deferred func of makeCall` printed out. At the same time, goroutine 21
+disappeared. It's reasonable to guess that the print was caused 21's deferred call.
 
-Moving on.
+Moving on:
 
 	(dlv) c
 	calling deferred func of makeCall
@@ -306,7 +305,7 @@ Moving on.
 We see another `calling deferred func of makeCall` and `received once`. Furthermore, one more
 goroutine disappeared. This matches with what should have happened: goroutine 22
 sent the singal on `done`, call its deferred function and exit. Meanwhile goroutine 20 received
-a signal, print nd stop at the break point again.
+a signal, print and stop at the break point again.
 
 Let's try to move to the next line: [L84](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L84)
 
@@ -316,8 +315,8 @@ Let's try to move to the next line: [L84](https://github.com/bitsgofer/gowat/blo
 	Warning: debugging optimized function
 	Command failed: no G executing on thread 0
 
-Now we have our deadlock. As I mentioned earlier, it's obvious now that we saw the steps. We can't
-expect a second signal ever so there's no way to continue.
+Now we see the deadlock. As I mentioned earlier, it's obvious now, after seeing the steps. We can't
+expect a second signal ever -> there's no way to continue.
 
 ## Conclusion
 
@@ -329,7 +328,7 @@ What I missed out was in fact right there in the doc for [testing.T](https://gol
 > Those methods, as well as the Parallel method,
 > **must be called only from the goroutine running the Test function**.
 
-While it's tempting to just say RTFM. I wouldn't have internalized o debugging till here.
+While it's tempting to just say RTFM. I wouldn't have internalized it w/o hitting this issue, still.
 
 `ノ┬─┬ノ ︵ ( \o°o)\`
 
@@ -340,12 +339,12 @@ Now back to how to write this test properly.
 As I have mentioned at the beginning, the test would not work as it did not take temporal properties
 of the system into account. In English, this basically means:
 
-- When we make N concurrent calls, there should be no expected order for which call is made first.
-- When these concurrent calls reach the rate limiter, they are **queued** due to the mutex,
-  and hence have an implicit order. However, this information is exclusive to the receiver side,
-  not the caller (where we do our checks).
-- So when I attach the expected result for `IsAllow` to my call, I did the wrong thing.
-- There are better ways to specify this behavior:
+- When we make N concurrent calls, there should be no expected order on which call is made first.
+- When these concurrent calls reach the rate limiter, they are **queued due to the mutex**,
+  and hence have an **implicit order**. However, this information is **exclusive to the rate limiter**,
+  not the caller (where we wrote our checks).
+- By attaching the expected result of `IsAllow` to my calls, I did the wrong thing.
+- There are better ways to specify and test this behavior:
   - Make the checks on server side instead: 1st call reaching the limiter passes, 2nd call fails.
-  - Verify an invariant properties of all the calls: out of 2 call, 1 pass and the other fails,
-    regardless of order. If we count the result, it would be fine, too.
+  - Verify an time-invariant properties of all the calls: out of 2 call, 1 pass and the other fails,
+    regardless of order. So we could have counted the results, too.
