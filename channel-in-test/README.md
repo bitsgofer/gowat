@@ -115,12 +115,13 @@ What we see:
 - we got a deadlock
 
 At this point, keen readers will see the obvious thing: one of the `makeCall` function failed, called
-`Fatalf` and didn't send anything to the `done` channel. Meanwhile, we are waiting for **two**.
-This is what caused the deadlock.
+`Fatalf` and didn't send anything to the `done` channel. Meanwhile, we are waiting for **two** signals.
 
-Well, that's it in retrospect! However, it was not clear at all when I was looking at the problem.
+In retrospect, this is what caused the deadlock. However, it was not clear at all
+when I was looking at the problem.
 
-What I expected was that the `Fatalf` call would fail my test and terminate it there. This is obviously wrong.
+What I expected was: calling `Fatalf` would fail my test there, w/o any complications (the same way
+`log.Fatalf` would terminate code). This is, obviously, wrong.
 
 ## Debug
 
