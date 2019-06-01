@@ -121,7 +121,7 @@ In retrospect, this is what caused the deadlock. However, it was not clear at al
 when I was looking at the problem.
 
 What I expected was: calling `Fatalf` would fail my test there, w/o any complications (the same way
-`log.Fatalf` would terminate code). This is, obviously, wrong.
+`log.Fatalf` would terminate code). This was proven wrong, however.
 
 ## Debug
 
