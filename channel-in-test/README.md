@@ -31,9 +31,10 @@ so it's not all bad :D.
 
 ## Reproduce
 
-The test's code [is linked here](#). It's quite bloated as I tried to annotate the problem
-and print out what's going on. For the most part, you can ignore the comments. I only keep
-them there so the debugging log matches what happened.
+The test's code [is linked here](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L8-L90).
+It's quite bloated as I tried to annotate the problem and print out what's going on.
+For the most part, you can ignore the comments.
+I only keep them there so the debugging log matches what happened.
 
 The system I'm working on
 
@@ -194,7 +195,6 @@ Then as we continue to run till the first break point:
 	  Goroutine 21 - User: ./concurrent_rate_limiter_test.go:51 github.com/bitsgofer/gowat/channel-in-test.TestWat.func1.2 (0x4ef1e8) (thread 5041)
 	  Goroutine 22 - User: ./concurrent_rate_limiter_test.go:39 github.com/bitsgofer/gowat/channel-in-test.TestWat.func1.2 (0x4ef120)
 	[8 goroutines]
-```
 
 The stack trace (`bt`) showed that we start from `tRunner` (the test runner) and went down into
 [L83](#), waiting for a signal.
