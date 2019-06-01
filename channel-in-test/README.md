@@ -166,7 +166,7 @@ I first set four breakpoints:
 - [L83](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L83):
   stop right before receiving a signal from `done`.
 
-As we continue to run till the first breaking point:
+As we continue to run till the first break point:
 
 	(dlv) c
 	> github.com/bitsgofer/gowat/channel-in-test.TestWat.func1.2() ./concurrent_rate_limiter_test.go:51 (hits goroutine(21):1 total:1) (PC: 0x4ef1e8)
