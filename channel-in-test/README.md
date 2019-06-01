@@ -60,7 +60,7 @@ The system I'm working on
 	$> cat /proc/cpuinfo  | grep processor | wc -l
 	2
 
-While I started running this as normal with `go test -mod=vendor -v ./...`, it occurred to
+While I started running this with `go test -mod=vendor -v ./...`, it occurred to
 me that I could compile the test into a binary as well.
 
 This ensures that I always debug the same thing, even if I restart the debugger.
