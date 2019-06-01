@@ -1,6 +1,7 @@
 package ratelimiter
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -17,19 +18,7 @@ func TestWat(t *testing.T) {
 			windowLength: 1,
 			maxRPS:       1,
 			callGroups: [][]call{
-				[]call{{0, true}, {0, false}}, // only one can pass
-				[]call{{1, false}},            // same window with the one above
-				[]call{{3, true}, {3, false}}, // new window, only one can pass
-				[]call{{5, true}},             // new window
-				[]call{{7, true}},             // new window
-			},
-		},
-		"spread": {
-			windowLength: 3,
-			maxRPS:       2,
-			callGroups: [][]call{ // will allow for at most 8 calls in a window (bcuz int division)
-				[]call{{0, true}, {0, true}, {0, true}, {0, true}},             // all can pass
-				[]call{{1, true}, {1, true}, {1, true}, {1, true}, {1, false}}, // one should fail
+				[]call{{0, false}, {0, false}}, // one should pass -> we should call Fatalf
 			},
 		},
 	}
@@ -39,10 +28,18 @@ func TestWat(t *testing.T) {
 			limiter := New(tc.windowLength, tc.maxRPS)
 
 			for _, callGroup := range tc.callGroups {
+				defer func() {
+					fmt.Println("calling deferred func of subT")
+				}()
 				n := len(callGroup)
-				done := make(chan struct{}, n) // allow n concurrent, non-blocking send
+				done := make(chan struct{}, n) // allow n concurrent, non-blocking send // style 1
+				// wg := &sync.WaitGroup{} // style 2
+				// wg.Add(n)
 
 				makeCall := func(c call) {
+					defer func() {
+						fmt.Println("calling deferred func of makeCall")
+					}()
 					// the following error checking code is logically wrong
 					// (should count no of pass/fail instead).
 					//
@@ -73,7 +70,8 @@ func TestWat(t *testing.T) {
 						//
 						// welcome to the rabbit hole... (╯°□°)╯︵ ┻━┻
 					}
-					done <- struct{}{}
+					done <- struct{}{} // style 1
+					// wg.Done() // style 2
 				}
 
 				// make n concurrent calls
@@ -81,9 +79,11 @@ func TestWat(t *testing.T) {
 					go makeCall(call)
 				}
 				// wait for n calls to finish
-				for i := 0; i < n; i++ {
+				for i := 0; i < n; i++ { // style 1
 					<-done
+					fmt.Println("received once")
 				}
+				// wg.Wait() // style 2
 			}
 		})
 	}
