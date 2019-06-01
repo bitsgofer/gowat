@@ -12,13 +12,13 @@ func TestWat(t *testing.T) {
 	}
 	var testCases = map[string]struct {
 		windowLength, maxRPS int64
-		callGroups           [][]call // groups of call that happen concurrently (same timestamp)
+		callGroups           [][]call // groups of concurrent calls + their expected result (BAD SPEC)
 	}{
-		"oneRPS": {
+		"oneRPS": { // a rate limiter with a window of 1s and max RPS of 1
 			windowLength: 1,
 			maxRPS:       1,
 			callGroups: [][]call{
-				[]call{{0, false}, {0, false}}, // one should pass -> we should call Fatalf
+				[]call{{0, false}, {0, false}}, // only one call should pass -> test will fail
 			},
 		},
 	}
@@ -33,7 +33,7 @@ func TestWat(t *testing.T) {
 				}()
 				n := len(callGroup)
 				done := make(chan struct{}, n) // allow n concurrent, non-blocking send // style 1
-				// wg := &sync.WaitGroup{} // style 2
+				// wg := &sync.WaitGroup{} // style 2 (another way to wait, just to validate if the logic is sound)
 				// wg.Add(n)
 
 				makeCall := func(c call) {
@@ -50,17 +50,17 @@ func TestWat(t *testing.T) {
 						// we have a deadlock with this line
 						subT.Fatalf("IsAllow(%v), want= %v, got= %v", c.ts, want, got)
 
-						// but if we comment out the Fatalf and use Logf/Errorf instead,
+						// But if we comment out the Fatalf and use Logf/Errorf instead,
 						// we will not have the deadlock
 						// subT.Logf("IsAllow(%v), want= %v, got= %v", c.ts, want, got)
 
-						// running with -race (at least for me) either remove the deadlock
+						// Running with -race (at least for me) either remove the deadlock
 						// or put the test/race detector into infinite loop!
 
-						// the explanation may lie somewhere in testing.T's implementation
-						// or how the actual test is compiled and generated
-						// or maybe this doc on tesing.T:
+						// The explanation may lie somewhere in testing.T's implementation
+						// In fact, it's probably related to t.FailNow()
 						//
+						// We also know of this doc:
 						// https://golang.org/pkg/testing/#T
 						//
 						// > A test ends when its Test function returns or calls any of the
@@ -68,7 +68,7 @@ func TestWat(t *testing.T) {
 						// > Those methods, as well as the Parallel method, must be called
 						// > only from the goroutine running the Test function.
 						//
-						// welcome to the rabbit hole... (╯°□°)╯︵ ┻━┻
+						// (╯°□°)╯︵ ┻━┻
 					}
 					done <- struct{}{} // style 1
 					// wg.Done() // style 2
