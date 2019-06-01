@@ -20,10 +20,11 @@ To check one implementation, I wrote some tests involving:
 This seems reasonable at first, so I proceeded to write the test.
 However, when running it, I got a deadlock. This puzzled me for a while.
 
-> The spec above is not correct, too. You jump to [the extra part](#extra) to see what's the issue.
+> While it's not the focus, the spec above is a bad one.
+> You can jump to [the extra part](#extra) to see what's the issue.
 > Hint: it's related to temporal properties (how the system behaves over time).
 
-> P.S: Thanks `jay7x` and `choonkeat` for pitching in with code and ideas!
+P.S: Thanks `jay7x` and `choonkeat` for pitching in with code and ideas!
 
 ## Reproduce
 
