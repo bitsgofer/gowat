@@ -212,7 +212,7 @@ Meanwhile, the interesting goroutines are:
 - 21: one `makeCall`. It currently stopped at [L51](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L51),
   where `Fatalf` is.
 - 22: another `makeCall`. This one have not started executing yet
-  (still at [L39](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L39)),
+  (still at [L39](https://github.com/bitsgofer/gowat/blob/master/channel-in-test/concurrent_rate_limiter_test.go#L39)).
   Because we have setup one call to fail (happend in goroutine 21), the call in this goroutine should not fail.
 
 Let's continue:
