@@ -5,8 +5,8 @@ This is a debug story. The bug happened because the code didn't do what I expect
 My mental model has divereged from reality here. Plus, it happened in a subtle way
 that I wasn't able to understand at a glance.
 
-I document the debugging process plus other things learnt here to distill to do it better next time.
-It also helped me refined my mental model of how Go tests execute.
+I document the debugging process plus other things learnt here. It's so I can do better next time.
+Furthermore, writing down helped me refined the mental model of how Go tests should execute.
 
 ## The story
 
